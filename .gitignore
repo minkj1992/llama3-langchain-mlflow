@@ -10,3 +10,5 @@ data/llm/**
 */.ipynb_checkpoints/*
 
 *.sqlite
+
+*.venv
