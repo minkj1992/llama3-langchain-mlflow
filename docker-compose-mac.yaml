@@ -12,38 +12,12 @@ services:
     restart: always
     environment:
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
-      - OLLAMA_URI=${OLLAMA_URI}
-      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - OLLAMA_URI=http://host.docker.internal:11434
+      - OLLAMA_MODEL=Meta-Llama-3-8B-Instruct.Q8_0.gguf
     depends_on:
-      - llm
       - mlflow-server
     networks:
       - ollama-docker
-
-  llm:
-    image: ollama/ollama:latest
-    ports:
-      - ${OLLAMA_PORT}:${OLLAMA_PORT}
-    volumes:
-      - ./data/llm:/root/.ollama
-    container_name: ollama
-    entrypoint: ["/bin/ollama"]
-    command: >
-      serve &&
-      /bin/ollama run llama3
-    pull_policy: always
-    tty: true
-    restart: always
-    networks:
-      - ollama-docker
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-  
   mlflow-server:
     image: ghcr.io/mlflow/mlflow
     command: 'mlflow server --host 0.0.0.0 --port ${MLFLOW_SERVER_PORT} --backend-store-uri sqlite:////app/db.sqlite --gunicorn-opts "--timeout=120"'
@@ -54,7 +28,26 @@ services:
     restart: always
     networks:
       - ollama-docker
-  
+
+  # # https://jupyter-docker-stacks.readthedocs.io/en/latest/
+  # jupyter:
+  #   image: quay.io/jupyter/base-notebook:python-3.11
+  #   user: root
+  #   ports:
+  #     - ${JUPYTER_PORT}:8888
+  #   environment:
+  #     - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+  #     - OPENAI_API_BASE=http://host.docker.internal:11434
+  #     - JUPYTER_ENABLE_LAB=yes
+  #     - NB_USER=${JUPYTER_USER}
+  #     - NB_UID=${JUPYTER_UID}
+  #     - NB_GID=${JUPYTER_GID}
+  #     - CHOWN_HOME=yes
+  #     - CHOWN_HOME_OPTS=-R
+  #   volumes:
+  #     - ./data/jupyter:/home/${JUPYTER_USER}/work
+  #   networks:
+  #     - ollama-docker      
 
 networks:
   ollama-docker:

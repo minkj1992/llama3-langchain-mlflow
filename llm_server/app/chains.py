@@ -1,12 +1,13 @@
 import os
 
+from app.custom_parser import MY_PARSER
 from app.prompts import PromptDto
 from langchain.callbacks import MlflowCallbackHandler
 from langchain.chains.llm import LLMChain
 from langchain_community.llms import Ollama
 
 llm = Ollama(
-    model="Meta-Llama-3-8B-Instruct.Q8_0.gguf",
+    model=os.getenv("OLLAMA_MODEL"),
     temperature=0,
     base_url=os.getenv("OLLAMA_URI"),
 )
@@ -25,4 +26,5 @@ def get_chain(exp_id, room_uuid: str, run_id, p: PromptDto):
         callbacks=[
             callback_handler,
         ],
+        output_parser=MY_PARSER,
     )

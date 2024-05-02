@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from langchain_core.prompts import PromptTemplate
-
 from app.custom_parser import MY_PARSER
+from langchain_core.prompts import PromptTemplate
 
 coherence_template = """You are the judge evaluating coherence/logic when you receive the debate topic and the content of the discussion. Please score it out of 100 points and submit your assessment.
 

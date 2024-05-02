@@ -1,8 +1,8 @@
 import json
+import os
 
 import pandas as pd
 from app.chains import get_chain
-from app.custom_parser import parse
 from app.prompts import debate_prompts
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,28 +43,28 @@ async def predict_debate(item: TopicDebate):
             with mlflow.start_run(run_name=prompt_category, nested=True) as child:
                 # invoke
                 chain = get_chain(EXP_ID, item.room_uuid, child.info.run_id, p)
-                outputs[p.tag] = parse(
-                    chain.invoke({"topic": item.topic, "debate": item.debate})
+                outputs[p.tag] = chain.invoke(
+                    {"topic": item.topic, "debate": item.debate}
                 )
 
             questions.append(p.prompt.format(topic=item.topic, debate=item.debate))
             predictions.append(outputs[p.tag])
 
-        mlflow.evaluate(
-            model=f'{os.getenv("OLLAMA_URI")}/v1',
-            model_type="question-answering",
-            data=pd.DataFrame(
-                {
-                    "questions": questions,
-                    "predictions": predictions,
-                    # "answer": TODO chatgpt
-                }
-            ),
-            feature_names=[
-                "questions",
-            ],
-            predictions="predictions",
-        )
+        # mlflow.evaluate(
+        #     model=f'{os.getenv("OLLAMA_URI")}/v1',
+        #     model_type="question-answering",
+        #     data=pd.DataFrame(
+        #         {
+        #             "questions": questions,
+        #             "predictions": predictions,
+        #             # "answer": TODO chatgpt
+        #         }
+        #     ),
+        #     feature_names=[
+        #         "questions",
+        #     ],
+        #     predictions="predictions",
+        # )
 
     return Response(content=json.dumps(outputs), media_type="application/json")
 
