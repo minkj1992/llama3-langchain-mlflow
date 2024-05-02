@@ -1,9 +1,12 @@
 # Run
 
+1. #Set Custom model
+
 ```sh
 docker compose up -d
-docker exec -it ollama ollama run llama3
+
 ```
+
 
 
 # LLama3 download 

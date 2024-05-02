@@ -10,9 +10,9 @@ services:
       - 5000
     volumes:
       - ./mlflow/config.yaml:/app/config.yaml:ro
-    networks:
-      - ollama-docker
-
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"    
 
   mlflow-server:
     image: mlflow
@@ -24,24 +24,23 @@ services:
       - ${MLFLOW_SERVER_PORT}:${MLFLOW_SERVER_PORT}
     volumes:
       - ./data/mlflow:/app
-    networks:
-      - ollama-docker
-     
-
-  # https://ollama.com/blog/ollama-is-now-available-as-an-official-docker-image
-  # https://github.com/valiantlynx/ollama-docker/blob/main/docker-compose.yml
-  llm:
-    image: ollama/ollama:latest
-    ports:
-      - ${LLM_PORT}:${LLM_PORT}
-    volumes:
-      - ./data/llm:/root/.ollama
-    container_name: ollama
-    pull_policy: always
-    tty: true
     restart: always
-    networks:
-      - ollama-docker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+     
+  #TODO: dockerized ollama is too slow, so I use ollama as sevice process not by docker
+  ## https://ollama.com/blog/ollama-is-now-available-as-an-official-docker-image
+  ## https://github.com/valiantlynx/ollama-docker/blob/main/docker-compose.yml
+  # llm:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - ${LLM_PORT}:${LLM_PORT}
+  #   volumes:
+  #     - ./data/llm:/root/.ollama
+  #   container_name: ollama
+  #   pull_policy: always
+  #   tty: true
+  #   restart: always
 
   ## https://github.com/valiantlynx/ollama-docker/blob/main/docker-compose.yml
   # ollama-webui:
@@ -56,8 +55,6 @@ services:
   #   environment:
   #     - '/ollama/api=http://llm:${LLM_PORT}/api'
   #   restart: unless-stopped
-  #   networks:
-  #     - ollama-docker
 
   # https://jupyter-docker-stacks.readthedocs.io/en/latest/
   jupyter:
@@ -68,7 +65,7 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:${MLFLOW_SERVER_PORT}
       - MLFLOW_DEPLOYMENTS_TARGET=http://mlflow-deployments:5000
-      - OPENAI_API_BASE=http://llm:${LLM_PORT}
+      - OPENAI_API_BASE=${LLM_HOST}:${LLM_PORT}
       - JUPYTER_ENABLE_LAB=yes
       - NB_USER=${JUPYTER_USER}
       - NB_UID=${JUPYTER_UID}
@@ -77,9 +74,3 @@ services:
       - CHOWN_HOME_OPTS=-R
     volumes:
       - ./data/jupyter:/home/${JUPYTER_USER}/work
-    networks:
-      - ollama-docker
-
-networks:
-  ollama-docker:
-    external: false
