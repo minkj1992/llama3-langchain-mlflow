@@ -28,26 +28,7 @@ services:
     restart: always
     networks:
       - ollama-docker
-
-  # # https://jupyter-docker-stacks.readthedocs.io/en/latest/
-  # jupyter:
-  #   image: quay.io/jupyter/base-notebook:python-3.11
-  #   user: root
-  #   ports:
-  #     - ${JUPYTER_PORT}:8888
-  #   environment:
-  #     - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
-  #     - OPENAI_API_BASE=http://host.docker.internal:11434
-  #     - JUPYTER_ENABLE_LAB=yes
-  #     - NB_USER=${JUPYTER_USER}
-  #     - NB_UID=${JUPYTER_UID}
-  #     - NB_GID=${JUPYTER_GID}
-  #     - CHOWN_HOME=yes
-  #     - CHOWN_HOME_OPTS=-R
-  #   volumes:
-  #     - ./data/jupyter:/home/${JUPYTER_USER}/work
-  #   networks:
-  #     - ollama-docker      
+  
 
 networks:
   ollama-docker:

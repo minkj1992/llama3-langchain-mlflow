@@ -12,3 +12,5 @@ data/llm/**
 *.sqlite
 
 *.venv
+
+**/mlartifacts/*

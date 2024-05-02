@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import pandas as pd
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 
 import mlflow
 
+EXP_ID = "debates-llama3"
 app = FastAPI()
 
 # Set all CORS enabled origins
@@ -29,9 +31,6 @@ class TopicDebate(BaseModel):
     debate: str
 
 
-EXP_ID = "debates-hf"
-
-
 @app.post("/predict/")
 async def predict_debate(item: TopicDebate):
     outputs = {}
@@ -43,28 +42,31 @@ async def predict_debate(item: TopicDebate):
             with mlflow.start_run(run_name=prompt_category, nested=True) as child:
                 # invoke
                 chain = get_chain(EXP_ID, item.room_uuid, child.info.run_id, p)
-                outputs[p.tag] = chain.invoke(
+                chain_output = chain.invoke(
                     {"topic": item.topic, "debate": item.debate}
-                )
+                )[chain.output_key]
+
+                outputs[p.tag] = chain_output
 
             questions.append(p.prompt.format(topic=item.topic, debate=item.debate))
             predictions.append(outputs[p.tag])
 
-        # mlflow.evaluate(
-        #     model=f'{os.getenv("OLLAMA_URI")}/v1',
-        #     model_type="question-answering",
-        #     data=pd.DataFrame(
-        #         {
-        #             "questions": questions,
-        #             "predictions": predictions,
-        #             # "answer": TODO chatgpt
-        #         }
-        #     ),
-        #     feature_names=[
-        #         "questions",
-        #     ],
-        #     predictions="predictions",
-        # )
+        # TODO: check here
+        mlflow.evaluate(
+            model=f'{os.getenv("OLLAMA_URI")}/v1',
+            model_type="question-answering",
+            data=pd.DataFrame(
+                {
+                    "questions": questions,
+                    "predictions": predictions,
+                    # "answer": TODO chatgpt
+                }
+            ),
+            feature_names=[
+                "questions",
+            ],
+            predictions="predictions",
+        )
 
     return Response(content=json.dumps(outputs), media_type="application/json")
 
@@ -74,7 +76,7 @@ if __name__ == "__main__":
 
     import uvicorn
 
-    # MLFLOW_DEPLOYMENTS_TARGET=http://mlflow-deployments:5000
     # MLFLOW_TRACKING_URI=http://mlflow-server:5000
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+    mlflow.set_experiment(EXP_ID)
     uvicorn.run(app, host="0.0.0.0", port=8000)
