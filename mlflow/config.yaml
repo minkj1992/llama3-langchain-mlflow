@@ -1,0 +1,10 @@
+routes:
+  - name: ollama
+    route_type: llm/v1/chat
+    model:
+      provider: openai
+      name: llama3
+      config:
+        openai_api_key: "ollama"
+        # https://ollama.com/blog/openai-compatibility
+        openai_api_base: http://llm:11434/v1

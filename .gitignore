@@ -1,0 +1,12 @@
+.cache/
+**/__pycache__/**
+
+*.DS_Store
+*.pyc
+*.gguf
+
+data/llm/**
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+*.sqlite

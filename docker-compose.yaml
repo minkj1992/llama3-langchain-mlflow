@@ -1,0 +1,85 @@
+# https://github.com/adamksiezyk/data-science-workbench/blob/mlflow-local-llm/docker-compose.yml
+version: '3.8'
+services:
+  # https://github.com/mlflow/mlflow/pull/11262
+  mlflow-deployments:
+    image: mlflow
+    build: ./mlflow
+    command: "mlflow deployments start-server --config-path config.yaml --host 0.0.0.0 --port 5000 --workers 1"
+    expose:
+      - 5000
+    volumes:
+      - ./mlflow/config.yaml:/app/config.yaml:ro
+    networks:
+      - ollama-docker
+
+
+  mlflow-server:
+    image: mlflow
+    build: ./mlflow
+    command: 'mlflow server --host 0.0.0.0 --port ${MLFLOW_SERVER_PORT} --backend-store-uri sqlite:////app/db.sqlite --gunicorn-opts "--timeout=120"'
+    environment:
+      - MLFLOW_DEPLOYMENTS_TARGET=http://mlflow-deployments:5000
+    ports:
+      - ${MLFLOW_SERVER_PORT}:${MLFLOW_SERVER_PORT}
+    volumes:
+      - ./data/mlflow:/app
+    networks:
+      - ollama-docker
+     
+
+  # https://ollama.com/blog/ollama-is-now-available-as-an-official-docker-image
+  # https://github.com/valiantlynx/ollama-docker/blob/main/docker-compose.yml
+  llm:
+    image: ollama/ollama:latest
+    ports:
+      - ${LLM_PORT}:${LLM_PORT}
+    volumes:
+      - ./data/llm:/root/.ollama
+    container_name: ollama
+    pull_policy: always
+    tty: true
+    restart: always
+    networks:
+      - ollama-docker
+
+  ## https://github.com/valiantlynx/ollama-docker/blob/main/docker-compose.yml
+  # ollama-webui:
+  #   image: ghcr.io/open-webui/open-webui:main
+  #   container_name: ollama-webui
+  #   volumes:
+  #     - ./data/ollama-webui2:/app/backend/data
+  #   depends_on:
+  #     - llm
+  #   ports:
+  #     - ${OLLAMA_UI_PORT}:8080
+  #   environment:
+  #     - '/ollama/api=http://llm:${LLM_PORT}/api'
+  #   restart: unless-stopped
+  #   networks:
+  #     - ollama-docker
+
+  # https://jupyter-docker-stacks.readthedocs.io/en/latest/
+  jupyter:
+    image: quay.io/jupyter/base-notebook:python-3.11
+    user: root
+    ports:
+      - ${JUPYTER_PORT}:8888
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:${MLFLOW_SERVER_PORT}
+      - MLFLOW_DEPLOYMENTS_TARGET=http://mlflow-deployments:5000
+      - OPENAI_API_BASE=http://llm:${LLM_PORT}
+      - JUPYTER_ENABLE_LAB=yes
+      - NB_USER=${JUPYTER_USER}
+      - NB_UID=${JUPYTER_UID}
+      - NB_GID=${JUPYTER_GID}
+      - CHOWN_HOME=yes
+      - CHOWN_HOME_OPTS=-R
+    volumes:
+      - ./data/jupyter:/home/${JUPYTER_USER}/work
+    networks:
+      - ollama-docker
+
+networks:
+  ollama-docker:
+    external: false
