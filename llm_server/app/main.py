@@ -51,7 +51,7 @@ async def predict_debate(item: TopicDebate):
             predictions.append(outputs[p.tag])
 
         mlflow.evaluate(
-            model=f'{os.getenv("OLLAMA_URI")}/v1'
+            model=f'{os.getenv("OLLAMA_URI")}/v1',
             model_type="question-answering",
             data=pd.DataFrame(
                 {

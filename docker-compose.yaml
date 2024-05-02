@@ -8,13 +8,15 @@ services:
       - 8000:8000
     volumes:
       - ./llm_server:/code
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     restart: always
     environment:
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
       - OLLAMA_URI=${OLLAMA_URI}
     depends_on:
       - mlflow-server
+    networks:
+      - ollama-docker
 
   # TODO: dockerized ollama is too slow, so I use ollama as sevice process not by docker
   # https://ollama.com/blog/ollama-is-now-available-as-an-official-docker-image
@@ -29,6 +31,8 @@ services:
     pull_policy: always
     tty: true
     restart: always
+    networks:
+      - ollama-docker    
 
   mlflow-server:
     image: ghcr.io/mlflow/mlflow
@@ -38,6 +42,8 @@ services:
     volumes:
       - ./data/mlflow:/app
     restart: always
+    networks:
+      - ollama-docker    
 
   # https://jupyter-docker-stacks.readthedocs.io/en/latest/
   jupyter:
@@ -56,3 +62,9 @@ services:
       - CHOWN_HOME_OPTS=-R
     volumes:
       - ./data/jupyter:/home/${JUPYTER_USER}/work
+    networks:
+      - ollama-docker      
+
+networks:
+  ollama-docker:
+    external: false
