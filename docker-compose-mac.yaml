@@ -8,27 +8,65 @@ services:
       - 8000:8000
     volumes:
       - ./llm_server:/app/
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 3 --reload
     restart: always
     environment:
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
       - OLLAMA_URI=http://host.docker.internal:11434
       - OLLAMA_MODEL=Meta-Llama-3-8B-Instruct.Q8_0.gguf
+      - MLFLOW_DEPLOYMENTS_TARGET=${MLFLOW_DEPLOYMENTS_TARGET}
     depends_on:
       - mlflow-server
     networks:
       - ollama-docker
+
+  mlflow-deployments:
+    image: mlflow
+    build: ./mlflow
+    command: "mlflow deployments start-server --config-path config.yaml --host 0.0.0.0 --port 5000 --workers 1"
+    expose:
+      - 5000
+    volumes:
+      - ./mlflow/config.yaml:/app/config.yaml:ro
+    restart: always
+    networks:
+      - ollama-docker
+
   mlflow-server:
-    image: ghcr.io/mlflow/mlflow
+    image: mlflow
+    build: ./mlflow
     command: 'mlflow server --host 0.0.0.0 --port ${MLFLOW_SERVER_PORT} --backend-store-uri sqlite:////app/db.sqlite --gunicorn-opts "--timeout=120"'
     ports:
       - ${MLFLOW_SERVER_PORT}:${MLFLOW_SERVER_PORT}
     volumes:
       - ./data/mlflow:/app
+    environment:
+      - MLFLOW_DEPLOYMENTS_TARGET=${MLFLOW_DEPLOYMENTS_TARGET}
     restart: always
     networks:
       - ollama-docker
   
+  # https://jupyter-docker-stacks.readthedocs.io/en/latest/
+  jupyter:
+    image: quay.io/jupyter/base-notebook:python-3.11
+    user: root
+    ports:
+      - ${JUPYTER_PORT}:8888
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:${MLFLOW_SERVER_PORT}
+      - MLFLOW_DEPLOYMENTS_TARGET=${MLFLOW_DEPLOYMENTS_TARGET}
+      - OPENAI_API_BASE=${OLLAMA_URI}
+      - JUPYTER_ENABLE_LAB=yes
+      - NB_USER=${JUPYTER_USER}
+      - NB_UID=${JUPYTER_UID}
+      - NB_GID=${JUPYTER_GID}
+      - CHOWN_HOME=yes
+      - CHOWN_HOME_OPTS=-R
+    volumes:
+      - ./data/jupyter:/home/${JUPYTER_USER}/work
+    networks:
+      - ollama-docker
+
 
 networks:
   ollama-docker:

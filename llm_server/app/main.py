@@ -1,17 +1,19 @@
 import json
-import logging
-import os
 
-import pandas as pd
-from app.chains import get_chain
+from app.const import EXP_ID, MLFLOW_TRACKING_URI, get_logger
+from app.mlops import evaluate, track_llm
 from app.prompts import debate_prompts
-from fastapi import FastAPI, Response
+from fastapi import BackgroundTasks, FastAPI, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import mlflow
 
-EXP_ID = "debates-llama3"
+# from mlflow.metrics.genai
+
+logger = get_logger(__name__)
+
 app = FastAPI()
 
 # Set all CORS enabled origins
@@ -25,6 +27,27 @@ app.add_middleware(
 )
 
 
+class EvalItem(BaseModel):
+    run_id: str
+    question: str
+    prediction: str
+
+
+# for debug purpose
+@app.post("/evalute/", status_code=201)
+async def eval(item: EvalItem):
+    await run_in_threadpool(
+        evaluate,
+        {
+            "run_id": item.run_id,
+            "question": item.question,
+            "prediction": item.prediction,
+        },
+    )
+
+    return {"msg": "evaluate registered"}
+
+
 class TopicDebate(BaseModel):
     room_uuid: str
     topic: str
@@ -32,51 +55,44 @@ class TopicDebate(BaseModel):
 
 
 @app.post("/predict/")
-async def predict_debate(item: TopicDebate):
+async def predict_debate(item: TopicDebate, background_tasks: BackgroundTasks):
     outputs = {}
-    predictions = []
-    questions = []
+    tracks = None
+    logger.info("###############PREDICT IS CALLED###############")
     with mlflow.start_run(run_name=item.room_uuid) as parent:
-        for p in debate_prompts:
-            prompt_category = str(p.tag)
-            with mlflow.start_run(run_name=prompt_category, nested=True) as child:
-                # invoke
-                chain = get_chain(EXP_ID, item.room_uuid, child.info.run_id, p)
-                chain_output = chain.invoke(
-                    {"topic": item.topic, "debate": item.debate}
-                )[chain.output_key]
+        logger.info("###############PARENT IS CALLED###############")
 
-                outputs[p.tag] = chain_output
+        # debate_prompts order
+        tracks = [
+            track_llm(
+                p,
+                item.room_uuid,
+                item.topic,
+                item.debate,
+            )
+            for p in debate_prompts
+        ]
+        coherence, rebut, persuasiveness, info = tracks
 
-            questions.append(p.prompt.format(topic=item.topic, debate=item.debate))
-            predictions.append(outputs[p.tag])
+        outputs = {
+            **coherence.to_response(),
+            **rebut.to_response(),
+            **persuasiveness.to_response(),
+            **info.to_response(),
+        }
 
-        # TODO: check here
-        mlflow.evaluate(
-            model=f'{os.getenv("OLLAMA_URI")}/v1',
-            model_type="question-answering",
-            data=pd.DataFrame(
-                {
-                    "questions": questions,
-                    "predictions": predictions,
-                    # "answer": TODO chatgpt
-                }
-            ),
-            feature_names=[
-                "questions",
-            ],
-            predictions="predictions",
-        )
+    logger.info("###############REGISTER EVALUATE BACKGROUND###############")
+    for track in tracks:
+        background_tasks.add_task(evaluate, **track.to_eval())
 
     return Response(content=json.dumps(outputs), media_type="application/json")
 
 
 if __name__ == "__main__":
-    import os
 
     import uvicorn
 
     # MLFLOW_TRACKING_URI=http://mlflow-server:5000
-    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(EXP_ID)
     uvicorn.run(app, host="0.0.0.0", port=8000)

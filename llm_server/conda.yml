@@ -183,6 +183,7 @@ dependencies:
   - querystring_parser=1.2.4=py_0
   - re2=2023.09.01=h4cba328_2
   - readline=8.2=h92ec313_1
+  - regex=2024.4.28=py311hd23d018_0
   - requests=2.31.0=pyhd8ed1ab_0
   - rich=13.7.1=pyhd8ed1ab_0
   - scikit-learn=1.4.2=py311h696fe38_0
@@ -205,6 +206,7 @@ dependencies:
   - textstat=0.7.3=pyhd8ed1ab_0
   - thinc=8.2.2=py311hceb3b21_0
   - threadpoolctl=3.5.0=pyhc1e730c_0
+  - tiktoken=0.5.2=py311hd6c2c79_0
   - tk=8.6.13=h5083fa2_1
   - tqdm=4.66.2=pyhd8ed1ab_0
   - typer=0.9.4=pyhd8ed1ab_0

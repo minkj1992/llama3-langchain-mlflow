@@ -1,15 +1,16 @@
 import os
 
+from app.const import OLLAMA_MODEL, OLLAMA_URI
 from app.custom_parser import MY_PARSER
 from app.prompts import PromptDto
-from langchain.callbacks import MlflowCallbackHandler
 from langchain.chains.llm import LLMChain
+from langchain_community.callbacks.mlflow_callback import MlflowCallbackHandler
 from langchain_community.llms import Ollama
 
 llm = Ollama(
-    model=os.getenv("OLLAMA_MODEL"),
+    model=OLLAMA_MODEL,
     temperature=0,
-    base_url=os.getenv("OLLAMA_URI"),
+    base_url=OLLAMA_URI,
 )
 
 

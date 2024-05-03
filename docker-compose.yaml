@@ -8,7 +8,7 @@ services:
       - 8000:8000
     volumes:
       - ./llm_server:/app/
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 3
     restart: always
     environment:
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
@@ -43,10 +43,22 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-  
+
+  mlflow-deployments:
+    image: mlflow
+    build: ./mlflow
+    command: "mlflow deployments start-server --config-path config.yaml --host 0.0.0.0 --port 5000 --workers 1"
+    expose:
+      - 5000
+    volumes:
+      - ./mlflow/config.yaml:/app/config.yaml:ro
+    networks:
+      - ollama-docker
+
   mlflow-server:
-    image: ghcr.io/mlflow/mlflow
-    command: 'mlflow server --host 0.0.0.0 --port ${MLFLOW_SERVER_PORT} --backend-store-uri sqlite:////app/db.sqlite --gunicorn-opts "--timeout=120"'
+    image: mlflow
+    build: ./mlflow
+    command: 'mlflow server --host 0.0.0.0 --port ${MLFLOW_SERVER_PORT} --serve-artifacts --backend-store-uri sqlite:////app/db.sqlite --gunicorn-opts "--timeout=120"'
     ports:
       - ${MLFLOW_SERVER_PORT}:${MLFLOW_SERVER_PORT}
     volumes:
@@ -55,7 +67,6 @@ services:
     networks:
       - ollama-docker
   
-
 networks:
   ollama-docker:
     external: false
